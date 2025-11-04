@@ -4,7 +4,14 @@
  */
 
 import { supabase } from './supabase';
-import type { Db, User, Watcher, Cursor, UserSettings } from './types';
+import type { Watcher, Cursor, UserSettings } from './filedb';
+
+interface User {
+  tgId: number;
+  username?: string;
+  firstName?: string;
+  referredBy?: number;
+}
 
 export class SupabaseDb {
   /**

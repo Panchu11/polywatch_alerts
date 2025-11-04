@@ -26,6 +26,9 @@ export const config = {
   intervals: {
     tradePollMs: Number(process.env.TRADE_POLL_MS || 15_000),
     winsCheckMs: Number(process.env.WINS_CHECK_MS || 5 * 60_000),
+  },
+  storage: {
+    type: (process.env.STORAGE_TYPE || 'file') as 'file' | 'supabase',
   }
 };
 
