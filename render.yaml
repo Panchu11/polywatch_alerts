@@ -1,0 +1,25 @@
+# Render deployment configuration
+services:
+  - type: worker
+    name: polywatchalerts
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_ANNOUNCEMENTS_CHAT_ID
+        value: "@PolyWatchAlerts"
+      - key: MIN_TRADE_USD
+        value: "1000"
+      - key: CHANNEL_ANNOUNCE_USD
+        value: "10000"
+    disk:
+      name: polywatch-data
+      mountPath: /app/data
+      sizeGB: 1
+
