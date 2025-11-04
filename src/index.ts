@@ -36,19 +36,10 @@ async function main() {
     console.log("getMe() failed before launch:", (e as Error).message);
   }
 
-  // Try posting a hello to configured announcements chat (may fail if not admin)
-  try {
-    await bot.telegram.sendMessage(
-      config.announcementsChatId,
-      "Hello from PolyWatch Alerts bot. If you see this in the channel, posting permissions are set."
-    );
-  } catch (postErr) {
-    // eslint-disable-next-line no-console
-    console.log(
-      "Announcements post test skipped or failed (likely not admin yet):",
-      (postErr as Error).message
-    );
-  }
+  // Skip startup test message to avoid rate limits
+  // The announcer will handle channel posts with proper rate limiting
+  // eslint-disable-next-line no-console
+  console.log(`Announcements channel configured: ${config.announcementsChatId}`);
 
   // Launch bot without awaiting, continue startup
   bot.launch({ dropPendingUpdates: true }).catch((e) => {
