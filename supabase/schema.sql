@@ -59,7 +59,8 @@ CREATE TABLE IF NOT EXISTS channel_tx_posted (
 CREATE INDEX IF NOT EXISTS idx_channel_tx_posted_at ON channel_tx_posted(posted_at);
 
 -- Function to get top referrers
-CREATE OR REPLACE FUNCTION get_top_referrers(limit_count INTEGER DEFAULT 10)
+DROP FUNCTION IF EXISTS get_top_referrers(INTEGER);
+CREATE FUNCTION get_top_referrers(limit_count INTEGER DEFAULT 10)
 RETURNS TABLE (
   tg_id BIGINT,
   username TEXT,
@@ -67,7 +68,7 @@ RETURNS TABLE (
 ) AS $$
 BEGIN
   RETURN QUERY
-  SELECT 
+  SELECT
     u.tg_id,
     u.username,
     COUNT(r.tg_id) as referral_count
@@ -81,15 +82,16 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Cleanup function for old deduplication records
-CREATE OR REPLACE FUNCTION cleanup_old_dedupe_records()
+DROP FUNCTION IF EXISTS cleanup_old_dedupe_records();
+CREATE FUNCTION cleanup_old_dedupe_records()
 RETURNS void AS $$
 BEGIN
   -- Delete DM tx older than 48 hours
-  DELETE FROM dm_tx_seen 
+  DELETE FROM dm_tx_seen
   WHERE seen_at < NOW() - INTERVAL '48 hours';
-  
+
   -- Delete channel tx older than 7 days
-  DELETE FROM channel_tx_posted 
+  DELETE FROM channel_tx_posted
   WHERE posted_at < NOW() - INTERVAL '7 days';
 END;
 $$ LANGUAGE plpgsql;
