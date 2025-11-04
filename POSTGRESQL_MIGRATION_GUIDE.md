@@ -183,40 +183,36 @@ $$ LANGUAGE plpgsql;
 
 ## 📝 PHASE 3: Update Bot Code
 
-### Step 3.1: Install PostgreSQL Driver
+### Step 3.1: Install Supabase Client
 
 **In your project directory, run:**
 
 ```bash
-npm install pg
-npm install --save-dev @types/pg
+npm install @supabase/supabase-js
 ```
 
-### Step 3.2: Create Database Configuration
+### Step 3.2: Create Supabase Configuration
 
-**Create new file:** `src/store/postgres.ts`
+**Create new file:** `src/store/supabase.ts`
 
 ```typescript
-import { Pool } from 'pg';
+import { createClient } from '@supabase/supabase-js';
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 20,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY!; // Use service_role key for backend
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error('Missing Supabase credentials. Set SUPABASE_URL and SUPABASE_SERVICE_KEY');
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false, // Backend doesn't need session persistence
+  },
 });
-
-export default pool;
 ```
 
-### Step 3.3: Create PostgreSQL Database Class
-
-**Create new file:** `src/store/postgresdb.ts`
-
-This file will be ~300 lines. I'll create it in the next step with all the methods matching your current FileDb interface.
-
-### Step 3.4: Update Environment Variables
+### Step 3.3: Update Environment Variables
 
 **Add to `.env.example`:**
 
@@ -225,26 +221,29 @@ This file will be ~300 lines. I'll create it in the next step with all the metho
 # Option 1: File-based (current)
 # No additional config needed
 
-# Option 2: PostgreSQL (Supabase)
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.xxxxxxxxxxxxx.supabase.co:5432/postgres
+# Option 2: Supabase (PostgreSQL via REST API)
+SUPABASE_URL=https://xxxxxxxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_SERVICE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
 
 **Add to your `.env` file:**
 
 ```bash
-DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
+SUPABASE_URL=https://[YOUR-PROJECT-REF].supabase.co
+SUPABASE_SERVICE_KEY=[YOUR-SERVICE-ROLE-KEY]
 ```
 
-### Step 3.5: Update Config to Support Both Storage Types
+### Step 3.4: Update Config to Support Both Storage Types
 
 **Update `src/config.ts`:**
 
 ```typescript
 export const config = {
   // ... existing config ...
-  
+
   storage: {
-    type: process.env.STORAGE_TYPE || 'file', // 'file' or 'postgres'
+    type: process.env.STORAGE_TYPE || 'file', // 'file' or 'supabase'
   },
 };
 ```
@@ -255,58 +254,90 @@ export const config = {
 
 ### Step 4.1: Export Current Data
 
-**Create migration script:** `scripts/migrate-to-postgres.ts`
+**Create migration script:** `scripts/migrate-to-supabase.ts`
 
 ```typescript
 import { FileDb } from '../src/store/filedb';
-import pool from '../src/store/postgres';
+import { supabase } from '../src/store/supabase';
 
 async function migrate() {
-  console.log('Starting migration...');
-  
+  console.log('Starting migration to Supabase...');
+
   const fileDb = new FileDb();
   const data = fileDb.data;
-  
+
   // Migrate users
   console.log(`Migrating ${data.users.length} users...`);
-  for (const user of data.users) {
-    await pool.query(
-      'INSERT INTO users (tg_id, username, first_name, referred_by) VALUES ($1, $2, $3, $4) ON CONFLICT (tg_id) DO NOTHING',
-      [user.tgId, user.username, user.firstName, user.referredBy]
-    );
+  const usersToInsert = data.users.map(u => ({
+    tg_id: u.tgId,
+    username: u.username,
+    first_name: u.firstName,
+    referred_by: u.referredBy,
+  }));
+
+  if (usersToInsert.length > 0) {
+    const { error } = await supabase.from('users').upsert(usersToInsert, {
+      onConflict: 'tg_id',
+      ignoreDuplicates: false,
+    });
+    if (error) console.error('Error migrating users:', error);
+    else console.log(`✅ Migrated ${usersToInsert.length} users`);
   }
-  
+
   // Migrate watchers
   console.log(`Migrating ${data.watchers.length} watchers...`);
-  for (const watcher of data.watchers) {
-    await pool.query(
-      'INSERT INTO watchers (tg_id, address) VALUES ($1, $2) ON CONFLICT (tg_id, address) DO NOTHING',
-      [watcher.tgId, watcher.address]
-    );
+  const watchersToInsert = data.watchers.map(w => ({
+    tg_id: w.tgId,
+    address: w.address,
+  }));
+
+  if (watchersToInsert.length > 0) {
+    const { error } = await supabase.from('watchers').upsert(watchersToInsert, {
+      onConflict: 'tg_id,address',
+      ignoreDuplicates: true,
+    });
+    if (error) console.error('Error migrating watchers:', error);
+    else console.log(`✅ Migrated ${watchersToInsert.length} watchers`);
   }
-  
+
   // Migrate cursors
-  console.log(`Migrating ${Object.keys(data.cursors).length} cursors...`);
-  for (const [address, cursor] of Object.entries(data.cursors)) {
-    await pool.query(
-      'INSERT INTO cursors (address, last_ts, last_tx) VALUES ($1, $2, $3) ON CONFLICT (address) DO UPDATE SET last_ts = $2, last_tx = $3',
-      [address, cursor.lastTs, cursor.lastTx]
-    );
+  const cursorEntries = Object.entries(data.cursors);
+  console.log(`Migrating ${cursorEntries.length} cursors...`);
+  const cursorsToInsert = cursorEntries.map(([address, cursor]) => ({
+    address,
+    last_ts: cursor.lastTs,
+    last_tx: cursor.lastTx,
+  }));
+
+  if (cursorsToInsert.length > 0) {
+    const { error } = await supabase.from('cursors').upsert(cursorsToInsert, {
+      onConflict: 'address',
+      ignoreDuplicates: false,
+    });
+    if (error) console.error('Error migrating cursors:', error);
+    else console.log(`✅ Migrated ${cursorsToInsert.length} cursors`);
   }
-  
+
   // Migrate user settings
-  console.log(`Migrating ${Object.keys(data.userSettings).length} user settings...`);
-  for (const [tgId, settings] of Object.entries(data.userSettings)) {
-    if (settings.minDmUsd !== undefined) {
-      await pool.query(
-        'INSERT INTO user_settings (tg_id, min_dm_usd) VALUES ($1, $2) ON CONFLICT (tg_id) DO UPDATE SET min_dm_usd = $2',
-        [parseInt(tgId), settings.minDmUsd]
-      );
-    }
+  const settingsEntries = Object.entries(data.userSettings);
+  console.log(`Migrating ${settingsEntries.length} user settings...`);
+  const settingsToInsert = settingsEntries
+    .filter(([_, settings]) => settings.minDmUsd !== undefined)
+    .map(([tgId, settings]) => ({
+      tg_id: parseInt(tgId),
+      min_dm_usd: settings.minDmUsd,
+    }));
+
+  if (settingsToInsert.length > 0) {
+    const { error } = await supabase.from('user_settings').upsert(settingsToInsert, {
+      onConflict: 'tg_id',
+      ignoreDuplicates: false,
+    });
+    if (error) console.error('Error migrating settings:', error);
+    else console.log(`✅ Migrated ${settingsToInsert.length} user settings`);
   }
-  
-  console.log('Migration complete!');
-  await pool.end();
+
+  console.log('✅ Migration complete!');
 }
 
 migrate().catch(console.error);
@@ -315,20 +346,21 @@ migrate().catch(console.error);
 ### Step 4.2: Run Migration
 
 ```bash
-npx ts-node scripts/migrate-to-postgres.ts
+npx ts-node scripts/migrate-to-supabase.ts
 ```
 
 ---
 
 ## 📝 PHASE 5: Test & Deploy
 
-### Step 5.1: Test Locally with PostgreSQL
+### Step 5.1: Test Locally with Supabase
 
 **Update `.env`:**
 
 ```bash
-STORAGE_TYPE=postgres
-DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+STORAGE_TYPE=supabase
+SUPABASE_URL=https://[YOUR-PROJECT-REF].supabase.co
+SUPABASE_SERVICE_KEY=[YOUR-SERVICE-ROLE-KEY]
 ```
 
 **Run bot:**
@@ -353,13 +385,14 @@ npm start
 2. **Check:** watchers table has your data
 3. **Check:** users table has your data
 
-### Step 5.3: Deploy to Railway with PostgreSQL
+### Step 5.3: Deploy to Railway with Supabase
 
 1. **Go to:** Railway Dashboard → Your Project
 2. **Add environment variables:**
    ```
-   STORAGE_TYPE=postgres
-   DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+   STORAGE_TYPE=supabase
+   SUPABASE_URL=https://[YOUR-PROJECT-REF].supabase.co
+   SUPABASE_SERVICE_KEY=[YOUR-SERVICE-ROLE-KEY]
    ```
 3. **Redeploy**
 4. **Monitor logs** for successful connection
@@ -392,25 +425,31 @@ npm start
 
 **Solution:**
 ```bash
-# Check if DATABASE_URL is correct
-echo $DATABASE_URL
+# Check if SUPABASE_URL is correct
+echo $SUPABASE_URL
 
-# Test connection
-psql $DATABASE_URL -c "SELECT 1"
+# Should look like: https://xxxxxxxxxxxxx.supabase.co
 ```
 
-### Issue: SSL error
+### Issue: "Invalid API key" error
 
-**Solution:** Add `?sslmode=require` to connection string:
+**Solution:** Make sure you're using the **service_role** key, not the anon key:
+```bash
+# In Supabase Dashboard → Settings → API
+# Copy the "service_role" key (secret), not "anon" key
 ```
-DATABASE_URL=postgresql://...?sslmode=require
-```
 
-### Issue: Too many connections
+### Issue: Row Level Security (RLS) blocking inserts
 
-**Solution:** Reduce pool size in `postgres.ts`:
-```typescript
-max: 10, // instead of 20
+**Solution:** Disable RLS for backend operations or add policies:
+```sql
+-- In Supabase SQL Editor
+ALTER TABLE users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE watchers DISABLE ROW LEVEL SECURITY;
+ALTER TABLE cursors DISABLE ROW LEVEL SECURITY;
+ALTER TABLE user_settings DISABLE ROW LEVEL SECURITY;
+ALTER TABLE dm_tx_seen DISABLE ROW LEVEL SECURITY;
+ALTER TABLE channel_tx_posted DISABLE ROW LEVEL SECURITY;
 ```
 
 ---
