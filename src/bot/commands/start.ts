@@ -1,9 +1,9 @@
 import { Telegraf, Context, Markup } from "telegraf";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 
 export function registerStart(bot: Telegraf) {
   bot.start(async (ctx: Context) => {
-    const db = new FileDb();
+    const db = getDb();
     const meId = ctx.from?.id;
     const meUsername = ctx.from?.username || undefined;
     if (meId) db.ensureUser(meId, meUsername);

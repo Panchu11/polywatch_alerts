@@ -1,12 +1,12 @@
 import { Telegraf } from "telegraf";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 
 export function registerLeaderboard(bot: Telegraf) {
   const handle = async (ctx: any) => {
     // eslint-disable-next-line no-console
     console.log("/leaderboard invoked by", ctx.from?.id, "text=", ctx.message?.text || ctx.update?.message?.text);
     try {
-      const db = new FileDb();
+      const db = getDb();
       const top = db.topReferrers(10);
       if (!top.length) return ctx.reply("No referrals yet. Share your link from /start and invite friends!");
       const lines = top.map((u, i) => {

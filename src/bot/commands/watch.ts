@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 import { resolveToAddress } from "../../utils/polymarket";
 
 const POLY_URL = /^https?:\/\/(?:www\.)?polymarket\.com\/profile\/[a-zA-Z0-9_-]+/i;
@@ -28,7 +28,7 @@ export function registerWatch(bot: Telegraf) {
       const address = await resolveToAddress(text);
       const tgId = ctx.from?.id;
       if (!tgId) return;
-      const db = new FileDb();
+      const db = getDb();
       db.addWatcher(tgId, address);
       await ctx.reply(
         `Added ${address} to your watchlist. Min alert threshold is $1,000 by default.\nUse /list to view or /unwatch to remove.`

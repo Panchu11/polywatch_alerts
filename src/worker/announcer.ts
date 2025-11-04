@@ -1,6 +1,6 @@
 import { Telegraf } from "telegraf";
 import { config } from "../config";
-import { FileDb } from "../store/filedb";
+import { getDb } from "../store/db";
 import { fetchTopTrades, Trade } from "../utils/polymarket";
 import { sendMessageSafe } from "../utils/tg";
 
@@ -31,7 +31,7 @@ async function summarizeTrade(t: Trade): Promise<string> {
 function sleep(ms: number) { return new Promise(res => setTimeout(res, ms)); }
 
 export function attachAnnouncer(bot: Telegraf) {
-  const db = new FileDb();
+  const db = getDb();
   let seeded = false;
 
   async function tick() {

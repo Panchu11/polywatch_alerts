@@ -1,9 +1,9 @@
 import { Telegraf } from "telegraf";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 
 export function registerList(bot: Telegraf) {
   bot.command("list", async (ctx) => {
-    const db = new FileDb();
+    const db = getDb();
     const tgId = ctx.from?.id;
     if (!tgId) return;
     const items = db.listWatchers(tgId);

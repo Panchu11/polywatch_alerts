@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { FileDb } from "../store/filedb";
+import { getDb } from "../store/db";
 import { fetchRecentTrades, Trade, fetchClosedPositions } from "../utils/polymarket";
 import { config } from "../config";
 import { sendMessageSafe } from "../utils/tg";
@@ -31,7 +31,7 @@ async function summarizeTrade(t: Trade): Promise<string> {
 }
 
 export function attachPoller(bot: Telegraf) {
-  const db = new FileDb();
+  const db = getDb();
   const lastSeen: Record<string, { ts: number; tx?: string | null }> = {};
 
   // Channel announcements are handled exclusively by the global announcer.

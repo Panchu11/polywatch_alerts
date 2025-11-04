@@ -1,13 +1,13 @@
 import { Telegraf } from "telegraf";
 import { config } from "../../config";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 
 export function registerSettings(bot: Telegraf) {
   const handle = async (ctx: any) => {
     // eslint-disable-next-line no-console
     console.log("/settings invoked by", ctx.from?.id, "text=", ctx.message?.text || ctx.update?.message?.text);
     try {
-      const db = new FileDb();
+      const db = getDb();
       const r = config.rules;
       const tgId = ctx.from?.id;
       const my = tgId ? db.getUserSettings(tgId) : {};

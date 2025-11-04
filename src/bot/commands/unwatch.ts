@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 
 const WALLET = /^0x[a-fA-F0-9]{40}$/;
 
@@ -25,7 +25,7 @@ export function registerUnwatch(bot: Telegraf) {
       const normalized = arg.toLowerCase();
       // eslint-disable-next-line no-console
       console.log(`/unwatch command: tgId=${tgId} arg="${arg}" normalized="${normalized}"`);
-      const db = new FileDb();
+      const db = getDb();
       db.removeWatcher(tgId, normalized);
       return ctx.reply("✅ Removed from your watchlist.\nSend /list to verify.");
     }
@@ -53,7 +53,7 @@ export function registerUnwatch(bot: Telegraf) {
     const normalized = text.trim().toLowerCase();
     // eslint-disable-next-line no-console
     console.log(`/unwatch interactive: tgId=${tgId} text="${text}" normalized="${normalized}"`);
-    const db = new FileDb();
+    const db = getDb();
     db.removeWatcher(tgId, normalized);
     pendingUnwatch.delete(tgId);
     await ctx.reply("✅ Removed from your watchlist.\nSend /list to verify.");

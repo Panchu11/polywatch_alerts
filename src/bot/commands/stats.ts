@@ -1,5 +1,5 @@
 import { Telegraf } from "telegraf";
-import { FileDb } from "../../store/filedb";
+import { getDb } from "../../store/db";
 import { config } from "../../config";
 
 export function registerStats(bot: Telegraf) {
@@ -7,7 +7,7 @@ export function registerStats(bot: Telegraf) {
     // eslint-disable-next-line no-console
     console.log("/stats invoked by", ctx.from?.id, "text=", ctx.message?.text || ctx.update?.message?.text);
     try {
-      const db = new FileDb();
+      const db = getDb();
 
       // Basic aggregates
       const watchersArr = db.listWatchers(ctx.from?.id || 0); // personal
