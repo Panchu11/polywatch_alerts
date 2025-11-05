@@ -14,13 +14,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@supabase/supabase-js": "^2.79.0",
-    "deasync": "^0.1.30",
     "dotenv": "^17.2.3",
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
-    "@types/deasync": "^0.1.5",
     "@types/node": "^24.10.0",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
