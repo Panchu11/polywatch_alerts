@@ -1,6 +1,4 @@
 import "dotenv/config";
-import fs from "fs";
-import path from "path";
 import { config, requireEnv } from "./config";
 import { createBot } from "./bot/telegram";
 
@@ -9,20 +7,6 @@ console.log("Starting PolyWatch Alerts bot...");
 
 async function main() {
   requireEnv();
-
-  // Single-instance lock to avoid multiple bots running with same token
-  const dataDir = path.join(process.cwd(), "data");
-  try { fs.mkdirSync(dataDir, { recursive: true }); } catch {}
-  const lockPath = path.join(dataDir, "instance.lock");
-  try {
-    const fd = fs.openSync(lockPath, "wx");
-    fs.writeFileSync(fd, String(process.pid));
-    fs.closeSync(fd);
-  } catch (e) {
-    // eslint-disable-next-line no-console
-    console.log("Another bot instance seems to be running (instance.lock exists). Exiting this process.");
-    return; // don't proceed
-  }
 
   const bot = createBot(config.botToken);
 
@@ -48,14 +32,8 @@ async function main() {
   });
 
   // Enable graceful stop
-  process.once("SIGINT", () => {
-    try { fs.unlinkSync(path.join(process.cwd(), "data", "instance.lock")); } catch {}
-    bot.stop("SIGINT");
-  });
-  process.once("SIGTERM", () => {
-    try { fs.unlinkSync(path.join(process.cwd(), "data", "instance.lock")); } catch {}
-    bot.stop("SIGTERM");
-  });
+  process.once("SIGINT", () => bot.stop("SIGINT"));
+  process.once("SIGTERM", () => bot.stop("SIGTERM"));
   // eslint-disable-next-line no-console
   console.log("PolyWatch Alerts bot is running.");
 }
