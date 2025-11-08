@@ -5,6 +5,17 @@ import { createBot } from "./bot/telegram";
 // eslint-disable-next-line no-console
 console.log("Starting PolyWatch Alerts bot...");
 
+// Global error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Don't exit - keep bot running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - keep bot running
+});
+
 async function main() {
   requireEnv();
 
@@ -29,6 +40,11 @@ async function main() {
   bot.launch({ dropPendingUpdates: true }).catch((e) => {
     // eslint-disable-next-line no-console
     console.error("Telegraf launch error:", e);
+    // Try to relaunch after 5 seconds
+    setTimeout(() => {
+      console.log("Attempting to relaunch bot...");
+      bot.launch({ dropPendingUpdates: true }).catch(console.error);
+    }, 5000);
   });
 
   // Enable graceful stop

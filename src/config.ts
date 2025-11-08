@@ -13,7 +13,7 @@ export const config = {
   },
   rules: {
     minTradeUsd: Number(process.env.MIN_TRADE_USD || 1000),
-    channelAnnounceUsd: Number(process.env.CHANNEL_ANNOUNCE_USD || 10000), // $10k threshold for channel announcements
+    channelAnnounceUsd: Number(process.env.CHANNEL_ANNOUNCE_USD || 20000), // $20k threshold for channel announcements
     stakeDelta15mUsd: Number(process.env.STAKE_DELTA_15M_USD || 2500),
     stakeCum30mUsd: Number(process.env.STAKE_CUM_30M_USD || 5000),
     winsLossesThreshold: Number(process.env.WINS_LOSSES_THRESHOLD || 3),
